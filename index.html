@@ -984,13 +984,13 @@ function render() {
   ctx.fillStyle = '#1a1a2e';
   ctx.fillRect(0, 0, canvas.width, canvas.height);
   
-  // Sky gradient
-  let skyGrad = ctx.createLinearGradient(0, -camera.y, 0, canvas.height - camera.y);
+  // Sky gradient — screen space, always visible above ground
+  let skyGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
   skyGrad.addColorStop(0, '#87CEEB');
-  skyGrad.addColorStop(0.5, '#5da9d4');
+  skyGrad.addColorStop(0.6, '#5da9d4');
   skyGrad.addColorStop(1, '#2c5aa0');
   ctx.fillStyle = skyGrad;
-  ctx.fillRect(0, 0, canvas.width, Math.max(0, (20 * TILE_SIZE - camera.y)));
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
   
   // Render tiles
   let startX = Math.floor(camera.x / TILE_SIZE);
@@ -1092,9 +1092,7 @@ function render() {
   
   // Body
   ctx.fillStyle = '#3498db';
-  ctx.beginPath();
-  ctx.roundRect(px - 10, py - 16, 20, 28, 5);
-  ctx.fill();
+  ctx.fillRect(px - 10, py - 16, 20, 28);
   
   // Head
   ctx.fillStyle = '#f1c40f';
@@ -1515,7 +1513,7 @@ function newGame() {
   
   player = {
     x: WORLD_WIDTH * TILE_SIZE / 2,
-    y: 10 * TILE_SIZE,
+    y: 12 * TILE_SIZE,
     width: 24,
     height: 32,
     speed: 4,
