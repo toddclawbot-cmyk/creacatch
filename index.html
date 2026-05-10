@@ -1,0 +1,1543 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Creacatch</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: #1a1a2e;
+  font-family: 'Courier New', monospace;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+#gameCanvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  image-rendering: pixelated;
+}
+#ui {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+}
+#topBar {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 48px;
+  background: rgba(0,0,0,0.7);
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  gap: 8px;
+  pointer-events: auto;
+}
+.stat-bar {
+  flex: 1;
+  max-width: 120px;
+  height: 16px;
+  background: #333;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+}
+.stat-bar-fill {
+  height: 100%;
+  border-radius: 8px;
+  transition: width 0.3s;
+}
+.hp-fill { background: linear-gradient(90deg, #e74c3c, #c0392b); }
+.xp-fill { background: linear-gradient(90deg, #2ecc71, #27ae60); }
+.stat-label {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  color: white;
+  font-size: 9px;
+  text-shadow: 1px 1px 2px black;
+}
+#depthIndicator {
+  color: #f39c12;
+  font-size: 11px;
+  padding: 2px 8px;
+  background: rgba(0,0,0,0.5);
+  border-radius: 4px;
+}
+#joystick {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  width: 100px;
+  height: 100px;
+  background: rgba(255,255,255,0.15);
+  border-radius: 50%;
+  border: 3px solid rgba(255,255,255,0.3);
+  pointer-events: auto;
+  touch-action: none;
+}
+#joystickKnob {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  background: rgba(255,255,255,0.5);
+  border-radius: 50%;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+#actionButtons {
+  position: absolute;
+  bottom: 20px;
+  right: 20px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  pointer-events: auto;
+}
+.action-btn {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 3px solid rgba(255,255,255,0.4);
+  background: rgba(0,0,0,0.6);
+  color: white;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.1s;
+}
+.action-btn:active {
+  transform: scale(0.9);
+  background: rgba(255,255,255,0.2);
+}
+.action-btn.attack { border-color: #e74c3c; }
+.action-btn.interact { border-color: #3498db; }
+.action-btn.inventory { border-color: #f1c40f; }
+.action-btn.capture { border-color: #9b59b6; }
+#modal {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: rgba(0,0,0,0.85);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  z-index: 100;
+}
+#modalContent {
+  background: #2c3e50;
+  border-radius: 16px;
+  padding: 20px;
+  max-width: 90vw;
+  max-height: 80vh;
+  overflow-y: auto;
+  color: white;
+  border: 2px solid #3498db;
+}
+.modal-title {
+  font-size: 20px;
+  text-align: center;
+  margin-bottom: 16px;
+  color: #3498db;
+}
+.modal-close {
+  float: right;
+  background: #e74c3c;
+  border: none;
+  color: white;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 16px;
+}
+.inventory-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+  margin: 10px 0;
+}
+.inv-slot {
+  aspect-ratio: 1;
+  background: #34495e;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  border: 2px solid #2c3e50;
+  cursor: pointer;
+}
+.inv-slot.selected { border-color: #f1c40f; }
+.inv-slot.filled { background: #3d566e; }
+#combatScreen {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  background: linear-gradient(180deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  display: none;
+  flex-direction: column;
+  color: white;
+  pointer-events: auto;
+  z-index: 50;
+}
+#combatHeader {
+  padding: 10px;
+  text-align: center;
+  background: rgba(0,0,0,0.5);
+}
+#creatureDisplay {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+#creatureSprite {
+  font-size: 80px;
+  text-shadow: 0 0 20px currentColor;
+  animation: float 2s ease-in-out infinite;
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+#creatureInfo {
+  text-align: center;
+  margin-top: 10px;
+}
+#creatureName { font-size: 24px; font-weight: bold; }
+#creatureType { font-size: 12px; opacity: 0.8; }
+#creatureHPBar {
+  width: 200px;
+  height: 16px;
+  background: #333;
+  border-radius: 8px;
+  margin: 10px auto;
+  overflow: hidden;
+}
+#creatureHPFill {
+  height: 100%;
+  background: linear-gradient(90deg, #e74c3c, #c0392b);
+  transition: width 0.3s;
+}
+#moveButtons {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  padding: 20px;
+  background: rgba(0,0,0,0.7);
+}
+.move-btn {
+  background: #2c3e50;
+  border: 2px solid #3498db;
+  color: white;
+  padding: 15px;
+  border-radius: 10px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.move-btn:active {
+  transform: scale(0.95);
+  background: #3498db;
+}
+.move-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.move-name { font-weight: bold; display: block; }
+.move-info { font-size: 10px; opacity: 0.8; margin-top: 4px; }
+#combatLog {
+  position: absolute;
+  top: 60px;
+  left: 10px;
+  right: 10px;
+  background: rgba(0,0,0,0.7);
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 12px;
+  max-height: 80px;
+  overflow-y: auto;
+}
+#captureBtn {
+  margin: 10px;
+  padding: 15px;
+  background: #9b59b6;
+  border: none;
+  border-radius: 10px;
+  color: white;
+  font-size: 18px;
+  cursor: pointer;
+  pointer-events: auto;
+}
+#captureBtn:disabled { opacity: 0.5; }
+#partyBtn {
+  position: absolute;
+  top: 55px;
+  right: 10px;
+  background: rgba(0,0,0,0.7);
+  border: 2px solid #3498db;
+  color: white;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  cursor: pointer;
+  pointer-events: auto;
+}
+</style>
+</head>
+<body>
+<canvas id="gameCanvas"></canvas>
+<div id="ui">
+  <div id="topBar">
+    <div class="stat-bar">
+      <div class="stat-bar-fill hp-fill" id="hpBar" style="width:100%"></div>
+      <span class="stat-label" id="hpLabel">HP 100/100</span>
+    </div>
+    <div class="stat-bar">
+      <div class="stat-bar-fill xp-fill" id="xpBar" style="width:0%"></div>
+      <span class="stat-label" id="xpLabel">Lv 1</span>
+    </div>
+    <span id="depthIndicator">Surface</span>
+  </div>
+  <button id="partyBtn">Party</button>
+  <div id="joystick">
+    <div id="joystickKnob"></div>
+  </div>
+  <div id="actionButtons">
+    <button class="action-btn attack" id="btnAttack">⚔️</button>
+    <button class="action-btn interact" id="btnInteract">👆</button>
+    <button class="action-btn inventory" id="btnInventory">🎒</button>
+    <button class="action-btn capture" id="btnCapture">⭐</button>
+  </div>
+</div>
+<div id="modal">
+  <div id="modalContent"></div>
+</div>
+<div id="combatScreen">
+  <div id="combatHeader">
+    <div id="combatLog"></div>
+  </div>
+  <div id="creatureDisplay">
+    <div id="creatureSprite">🔥</div>
+    <div id="creatureInfo">
+      <div id="creatureName">Emberling</div>
+      <div id="creatureType">Fire / Lv 5</div>
+      <div id="creatureHPBar"><div id="creatureHPFill" style="width:100%"></div></div>
+    </div>
+  </div>
+  <div id="moveButtons"></div>
+  <button id="captureBtn">🎯 Capture (60%)</button>
+</div>
+<script>
+// ==================== GAME ENGINE ====================
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// Resize handler
+function resize() {
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+}
+window.addEventListener('resize', resize);
+resize();
+
+// ==================== SEEDED RNG ====================
+class SeededRandom {
+  constructor(seed) {
+    this.seed = seed % 2147483647;
+    if (this.seed <= 0) this.seed += 2147483646;
+  }
+  next() {
+    this.seed = (this.seed * 16807) % 2147483647;
+    return (this.seed - 1) / 2147483646;
+  }
+  nextInt(min, max) {
+    return Math.floor(this.next() * (max - min + 1)) + min;
+  }
+}
+
+// ==================== TILE TYPES ====================
+const TILES = {
+  AIR: 0, DIRT: 1, STONE: 2, GRASS: 3, SAND: 4,
+  WOOD: 5, LEAVES: 6, WATER: 7, LAVA: 8,
+  COPPER_ORE: 9, IRON_ORE: 10, SILVER_ORE: 11, GOLD_ORE: 12,
+  GEM_ORE: 13, BEDROCK: 14
+};
+
+const TILE_DATA = {
+  [TILES.AIR]: { color: 'transparent', solid: false, name: 'Air' },
+  [TILES.DIRT]: { color: '#8B4513', solid: true, mineTime: 0.3, name: 'Dirt' },
+  [TILES.STONE]: { color: '#808080', solid: true, mineTime: 0.8, name: 'Stone' },
+  [TILES.GRASS]: { color: '#228B22', solid: true, mineTime: 0.3, name: 'Grass' },
+  [TILES.SAND]: { color: '#F4D03F', solid: true, mineTime: 0.2, name: 'Sand' },
+  [TILES.WOOD]: { color: '#8B4513', solid: true, mineTime: 0.5, name: 'Wood' },
+  [TILES.LEAVES]: { color: '#2E8B57', solid: true, mineTime: 0.2, name: 'Leaves' },
+  [TILES.WATER]: { color: 'rgba(30,144,255,0.6)', solid: false, name: 'Water' },
+  [TILES.LAVA]: { color: '#FF4500', solid: false, name: 'Lava' },
+  [TILES.COPPER_ORE]: { color: '#B87333', solid: true, mineTime: 1.0, name: 'Copper' },
+  [TILES.IRON_ORE]: { color: '#A19D94', solid: true, mineTime: 1.5, name: 'Iron' },
+  [TILES.SILVER_ORE]: { color: '#C0C0C0', solid: true, mineTime: 2.0, name: 'Silver' },
+  [TILES.GOLD_ORE]: { color: '#FFD700', solid: true, mineTime: 2.5, name: 'Gold' },
+  [TILES.GEM_ORE]: { color: '#E0115F', solid: true, mineTime: 3.0, name: 'Gem' },
+  [TILES.BEDROCK]: { color: '#1a1a1a', solid: true, mineTime: Infinity, name: 'Bedrock' }
+};
+
+const TILE_ICONS = {
+  [TILES.DIRT]: '🟫', [TILES.STONE]: '⬜', [TILES.GRASS]: '🟩',
+  [TILES.SAND]: '🟨', [TILES.WOOD]: '🟫', [TILES.LEAVES]: '🌿',
+  [TILES.WATER]: '💧', [TILES.LAVA]: '🔥',
+  [TILES.COPPER_ORE]: '🟫', [TILES.IRON_ORE]: '⬜',
+  [TILES.SILVER_ORE]: '⬜', [TILES.GOLD_ORE]: '🟨',
+  [TILES.GEM_ORE]: '💎', [TILES.BEDROCK]: '⬛'
+};
+
+// ==================== CREATURES ====================
+const CREATURE_TYPES = {
+  EMBERLING: { name: 'Emberling', emoji: '🔥', type: 'fire', color: '#e74c3c',
+    rarity: 'common', baseHP: 45, attack: 52, defense: 43, speed: 65,
+    evolvesTo: 'MAGMAWYRM', evolveLevel: 10,
+    moves: [
+      { name: 'Ember', type: 'fire', power: 40, pp: 35, maxPP: 35, desc: 'A fiery attack.' },
+      { name: 'Scratch', type: 'normal', power: 35, pp: 35, maxPP: 35, desc: 'Scratches the foe.' },
+      { name: 'Fire Fang', type: 'fire', power: 65, pp: 15, maxPP: 15, desc: 'Bites with fire fangs.' },
+      { name: 'Rock Smash', type: 'rock', power: 50, pp: 20, maxPP: 20, desc: 'Breaks walls.' }
+    ]
+  },
+  AQUAPUP: { name: 'Aquapup', emoji: '💧', type: 'water', color: '#3498db',
+    rarity: 'common', baseHP: 50, attack: 44, defense: 50, speed: 60,
+    evolvesTo: 'TIDESHARKER', evolveLevel: 10,
+    moves: [
+      { name: 'Bubble', type: 'water', power: 40, pp: 30, maxPP: 30, desc: 'Shoots bubbles.' },
+      { name: 'Tackle', type: 'normal', power: 35, pp: 35, maxPP: 35, desc: 'Charges at foe.' },
+      { name: 'Aqua Jet', type: 'water', power: 60, pp: 20, maxPP: 20, desc: 'Strike of water.' },
+      { name: 'Bite', type: 'normal', power: 55, pp: 25, maxPP: 25, desc: 'Bites with force.' }
+    ]
+  },
+  SPROUTLING: { name: 'Sproutling', emoji: '🌱', type: 'grass', color: '#2ecc71',
+    rarity: 'common', baseHP: 55, attack: 49, defense: 49, speed: 55,
+    evolvesTo: 'THORNVINE', evolveLevel: 10,
+    moves: [
+      { name: 'Vine Whip', type: 'grass', power: 45, pp: 25, maxPP: 25, desc: 'Strikes with vines.' },
+      { name: 'Tackle', type: 'normal', power: 35, pp: 35, maxPP: 35, desc: 'Charges at foe.' },
+      { name: 'Razor Leaf', type: 'grass', power: 55, pp: 25, maxPP: 25, desc: 'Cuts with sharp leaves.' },
+      { name: 'Leech Seed', type: 'grass', power: 0, pp: 10, maxPP: 10, desc: 'Drains energy.', effect: 'drain' }
+    ]
+  },
+  ZAPPUP: { name: 'Zappup', emoji: '⚡', type: 'electric', color: '#f1c40f',
+    rarity: 'common', baseHP: 40, attack: 55, defense: 40, speed: 75,
+    evolvesTo: 'VOLTFANG', evolveLevel: 10,
+    moves: [
+      { name: 'Thunder Shock', type: 'electric', power: 40, pp: 30, maxPP: 30, desc: 'Zaps the foe.' },
+      { name: 'Quick Attack', type: 'normal', power: 40, pp: 30, maxPP: 30, desc: 'Strikes first.' },
+      { name: 'Spark', type: 'electric', power: 65, pp: 15, maxPP: 15, desc: 'Electric strike.' },
+      { name: 'Thunder Wave', type: 'electric', power: 0, pp: 20, maxPP: 20, desc: 'Paralyzes foe.', effect: 'paralyze' }
+    ]
+  },
+  PEBBLET: { name: 'Pebblet', emoji: '🪨', type: 'rock', color: '#95a5a6',
+    rarity: 'uncommon', baseHP: 50, attack: 60, defense: 65, speed: 35,
+    evolvesTo: 'BOULDERGRIM', evolveLevel: 15,
+    moves: [
+      { name: 'Rock Throw', type: 'rock', power: 50, pp: 25, maxPP: 25, desc: 'Throws rocks.' },
+      { name: 'Harden', type: 'rock', power: 0, pp: 30, maxPP: 30, desc: 'Boosts defense.', effect: 'defense_up' },
+      { name: 'Rollout', type: 'rock', power: 30, pp: 20, maxPP: 20, desc: 'Rolling attack.' },
+      { name: 'Earthquake', type: 'rock', power: 70, pp: 10, maxPP: 10, desc: 'Shakes ground.' }
+    ]
+  },
+  SHADELING: { name: 'Shadeling', emoji: '👻', type: 'ghost', color: '#9b59b6',
+    rarity: 'uncommon', baseHP: 45, attack: 70, defense: 35, speed: 70,
+    evolvesTo: 'SPECTERATH', evolveLevel: 15,
+    moves: [
+      { name: 'Shadow Ball', type: 'ghost', power: 55, pp: 20, maxPP: 20, desc: 'Dark energy.' },
+      { name: 'Lick', type: 'ghost', power: 30, pp: 30, maxPP: 30, desc: 'Paralyzing touch.' },
+      { name: 'Confuse Ray', type: 'ghost', power: 0, pp: 15, maxPP: 15, desc: 'Confuses foe.', effect: 'confuse' },
+      { name: 'Night Shade', type: 'ghost', power: 60, pp: 15, maxPP: 15, desc: 'Dark attack.' }
+    ]
+  },
+  CRYSTALWING: { name: 'Crystalwing', emoji: '💎', type: 'rock', color: '#00ced1',
+    rarity: 'rare', baseHP: 70, attack: 75, defense: 80, speed: 50,
+    evolvesTo: null, evolveLevel: Infinity,
+    moves: [
+      { name: 'Crystal Storm', type: 'rock', power: 80, pp: 15, maxPP: 15, desc: 'Crystal shards.' },
+      { name: 'Meteor Beam', type: 'rock', power: 90, pp: 10, maxPP: 10, desc: 'Space rock.' },
+      { name: 'Reflect', type: 'rock', power: 0, pp: 20, maxPP: 20, desc: 'Boosts defense.', effect: 'defense_up' },
+      { name: 'Power Gem', type: 'rock', power: 70, pp: 20, maxPP: 20, desc: 'Gems attack.' }
+    ]
+  },
+  STORMCALLER: { name: 'Stormcaller', emoji: '⛈️', type: 'electric', color: '#6495ed',
+    rarity: 'rare', baseHP: 75, attack: 85, defense: 55, speed: 80,
+    evolvesTo: null, evolveLevel: Infinity,
+    moves: [
+      { name: 'Thunder', type: 'electric', power: 90, pp: 10, maxPP: 10, desc: 'Full thunder.' },
+      { name: 'Lightning Rod', type: 'electric', power: 75, pp: 15, maxPP: 15, desc: 'Conducts power.' },
+      { name: 'Storm Dance', type: 'electric', power: 0, pp: 15, maxPP: 15, desc: 'Boosts attack.', effect: 'attack_up' },
+      { name: 'Wild Charge', type: 'electric', power: 85, pp: 15, maxPP: 15, desc: 'Rough shock.' }
+    ]
+  },
+  GEMHEART: { name: 'Gemheart', emoji: '💠', type: 'rock', color: '#e0115f',
+    rarity: 'epic', baseHP: 90, attack: 95, defense: 90, speed: 45,
+    evolvesTo: null, evolveLevel: Infinity,
+    moves: [
+      { name: 'Diamond Storm', type: 'rock', power: 100, pp: 5, maxPP: 5, desc: 'Ultimate gem.' },
+      { name: 'Ancient Power', type: 'rock', power: 85, pp: 10, maxPP: 10, desc: 'Primal force.' },
+      { name: 'Stone Edge', type: 'rock', power: 95, pp: 5, maxPP: 5, desc: 'Deadly stones.' },
+      { name: 'Protect', type: 'rock', power: 0, pp: 15, maxPP: 15, desc: 'Guards self.', effect: 'protect' }
+    ]
+  },
+  ANCIENT_GUARDIAN: { name: 'Ancient Guardian', emoji: '🗿', type: 'rock', color: '#8b4513',
+    rarity: 'epic', baseHP: 100, attack: 90, defense: 110, speed: 30,
+    evolvesTo: null, evolveLevel: Infinity,
+    moves: [
+      { name: 'Mountain Crash', type: 'rock', power: 95, pp: 8, maxPP: 8, desc: 'Devastating blow.' },
+      { name: 'Iron Defense', type: 'rock', power: 0, pp: 20, maxPP: 20, desc: 'Hardens body.', effect: 'defense_up' },
+      { name: 'Earthquake', type: 'rock', power: 90, pp: 5, maxPP: 5, desc: 'Shakes all.' },
+      { name: 'Wide Guard', type: 'rock', power: 0, pp: 15, maxPP: 15, desc: 'Blocks moves.', effect: 'protect' }
+    ]
+  },
+  VOIDWALKER: { name: 'Voidwalker', emoji: '🌌', type: 'ghost', color: '#4b0082',
+    rarity: 'legendary', baseHP: 110, attack: 120, defense: 70, speed: 100,
+    evolvesTo: null, evolveLevel: Infinity,
+    moves: [
+      { name: 'Shadow Strike', type: 'ghost', power: 110, pp: 5, maxPP: 5, desc: 'From the void.' },
+      { name: 'Cosmic Power', type: 'ghost', power: 0, pp: 10, maxPP: 10, desc: 'Cosmic boost.', effect: 'all_up' },
+      { name: 'Nightmare', type: 'ghost', power: 100, pp: 5, maxPP: 5, desc: 'Sleep nightmare.' },
+      { name: 'Astro Strike', type: 'ghost', power: 115, pp: 3, maxPP: 3, desc: 'Astral attack.' }
+    ]
+  },
+  SUNFORGE: { name: 'Sunforge', emoji: '☀️', type: 'fire', color: '#ff6b35',
+    rarity: 'legendary', baseHP: 105, attack: 115, defense: 85, speed: 90,
+    evolvesTo: null, evolveLevel: Infinity,
+    moves: [
+      { name: 'Solar Flare', type: 'fire', power: 120, pp: 3, maxPP: 3, desc: 'Sun explosion.' },
+      { name: 'Eternal Flame', type: 'fire', power: 100, pp: 5, maxPP: 5, desc: 'Eternal fire.' },
+      { name: 'Sunrise Strike', type: 'fire', power: 95, pp: 8, maxPP: 8, desc: 'Dawn attack.' },
+      { name: 'Inferno', type: 'fire', power: 110, pp: 3, maxPP: 3, desc: 'Massive blaze.' }
+    ]
+  }
+};
+
+const RARITY_MODIFIERS = { common: 0.6, uncommon: 0.4, rare: 0.25, epic: 0.12, legendary: 0.05 };
+
+// ==================== GAME STATE ====================
+const WORLD_WIDTH = 128;
+const WORLD_HEIGHT = 64;
+const TILE_SIZE = 32;
+
+let world = [];
+let worldRng;
+let camera = { x: 0, y: 0 };
+let player = {
+  x: WORLD_WIDTH * TILE_SIZE / 2,
+  y: 10 * TILE_SIZE,
+  width: 24,
+  height: 32,
+  speed: 4,
+  hp: 100,
+  maxHP: 100,
+  level: 1,
+  xp: 0,
+  xpToLevel: 20,
+  facing: 1,
+  inventory: [],
+  hotbar: [null, null, null, null, null, null],
+  selectedHotbar: 0
+};
+let party = [];
+let box = [];
+let creatures = [];
+let mineTarget = null;
+let mineProgress = 0;
+let keys = {};
+let joystickActive = false;
+let joystickDelta = { x: 0, y: 0 };
+let isAttacking = false;
+let inCombat = false;
+let currentWildCreature = null;
+let combatState = null;
+
+// ==================== WORLD GENERATION ====================
+function generateWorld(seed) {
+  worldRng = new SeededRandom(seed);
+  world = [];
+  
+  for (let x = 0; x < WORLD_WIDTH; x++) {
+    world[x] = [];
+    let surfaceHeight = 20 + Math.floor(worldRng.next() * 6);
+    
+    for (let y = 0; y < WORLD_HEIGHT; y++) {
+      if (y < surfaceHeight - 5) {
+        world[x][y] = TILES.AIR;
+      } else if (y === surfaceHeight - 5) {
+        world[x][y] = TILES.GRASS;
+      } else if (y === surfaceHeight - 4) {
+        world[x][y] = TILES.DIRT;
+      } else if (y < surfaceHeight + 8) {
+        world[x][y] = worldRng.next() < 0.03 ? TILES.DIRT : (worldRng.next() < 0.1 ? TILES.STONE : TILES.DIRT);
+      } else if (y < surfaceHeight + 20) {
+        world[x][y] = TILES.STONE;
+        if (worldRng.next() < 0.08) world[x][y] = TILES.COPPER_ORE;
+        if (worldRng.next() < 0.04) world[x][y] = TILES.IRON_ORE;
+      } else if (y < WORLD_HEIGHT - 5) {
+        world[x][y] = TILES.STONE;
+        if (worldRng.next() < 0.06) world[x][y] = TILES.SILVER_ORE;
+        if (worldRng.next() < 0.04) world[x][y] = TILES.GOLD_ORE;
+        if (worldRng.next() < 0.02) world[x][y] = TILES.GEM_ORE;
+        if (worldRng.next() < 0.01) world[x][y] = TILES.LAVA;
+      } else {
+        world[x][y] = TILES.BEDROCK;
+      }
+    }
+    
+    if (worldRng.next() < 0.15) {
+      let treeHeight = 4 + Math.floor(worldRng.next() * 3);
+      for (let ty = 0; ty < treeHeight; ty++) {
+        if (surfaceHeight - 6 - ty >= 0) {
+          world[x][surfaceHeight - 6 - ty] = TILES.WOOD;
+        }
+      }
+      for (let ly = -1; ly <= 1; ly++) {
+        for (let lx = -2; lx <= 2; lx++) {
+          let leafY = surfaceHeight - 6 - treeHeight + ly;
+          if (leafY >= 0 && x + lx >= 0 && x + lx < WORLD_WIDTH) {
+            if (world[x + lx][leafY] === TILES.AIR) {
+              world[x + lx][leafY] = TILES.LEAVES;
+            }
+          }
+        }
+      }
+    }
+  }
+  
+  spawnCreatures();
+}
+
+function spawnCreatures() {
+  creatures = [];
+  
+  const spawnList = [
+    { types: ['EMBERLING', 'AQUAPUP', 'SPROUTLING', 'ZAPPUP'], depth: 'surface', count: 8 },
+    { types: ['PEBBLET', 'SHADELING'], depth: 'underground', count: 6 },
+    { types: ['CRYSTALWING', 'STORMCALLER'], depth: 'deep', count: 4 },
+    { types: ['GEMHEART', 'ANCIENT_GUARDIAN'], depth: 'cavern', count: 2 },
+    { types: ['VOIDWALKER', 'SUNFORGE'], depth: 'bedrock', count: 1 }
+  ];
+  
+  spawnList.forEach(spawn => {
+    for (let i = 0; i < spawn.count; i++) {
+      let x = worldRng.nextInt(10, WORLD_WIDTH - 10);
+      let y = 10;
+      
+      if (spawn.depth === 'surface') y = worldRng.nextInt(8, 18);
+      else if (spawn.depth === 'underground') y = worldRng.nextInt(22, 35);
+      else if (spawn.depth === 'deep') y = worldRng.nextInt(36, 48);
+      else if (spawn.depth === 'cavern') y = worldRng.nextInt(49, 55);
+      else y = worldRng.nextInt(56, 58);
+      
+      let typeKey = spawn.types[worldRng.nextInt(0, spawn.types.length)];
+      let typeData = CREATURE_TYPES[typeKey];
+      let level = worldRng.nextInt(3, 12);
+      
+      creatures.push({
+        x: x * TILE_SIZE + TILE_SIZE / 2,
+        y: y * TILE_SIZE + TILE_SIZE / 2,
+        type: typeKey,
+        data: typeData,
+        level: level,
+        hp: typeData.baseHP + Math.floor(level * 5),
+        maxHP: typeData.baseHP + Math.floor(level * 5),
+        xp: 0,
+        status: null,
+        confused: false,
+        defenseBuff: 0,
+        attackBuff: 0
+      });
+    }
+  });
+}
+
+// ==================== CREATURE HELPERS ====================
+function getDepthZone() {
+  let tileY = Math.floor(player.y / TILE_SIZE);
+  if (tileY < 20) return 'surface';
+  if (tileY < 35) return 'underground';
+  if (tileY < 48) return 'deep';
+  if (tileY < 56) return 'cavern';
+  return 'bedrock';
+}
+
+function getDepthName() {
+  const zones = { surface: 'Surface', underground: 'Underground', deep: 'Deep', cavern: 'Cavern', bedrock: 'Bedrock' };
+  return zones[getDepthZone()] || 'Unknown';
+}
+
+function getCreatureDrops(creature) {
+  let drops = [];
+  let count = 1 + Math.floor(Math.random() * 3);
+  
+  if (creature.data.rarity === 'common') {
+    drops.push({ name: 'Common Dust', icon: '✨', count: count });
+    if (Math.random() < 0.3) drops.push({ name: 'Health Herb', icon: '💚', count: 1 });
+  } else if (creature.data.rarity === 'uncommon') {
+    drops.push({ name: 'Uncommon Shard', icon: '💎', count: count });
+    if (Math.random() < 0.4) drops.push({ name: 'Power Crystal', icon: '🔮', count: 1 });
+  } else if (creature.data.rarity === 'rare') {
+    drops.push({ name: 'Rare Essence', icon: '🌟', count: count });
+    if (Math.random() < 0.5) drops.push({ name: 'Stat Boost', icon: '📈', count: 1 });
+  } else if (creature.data.rarity === 'epic') {
+    drops.push({ name: 'Epic Core', icon: '💫', count: count });
+    if (Math.random() < 0.6) drops.push({ name: 'Mega Boost', icon: '🚀', count: 1 });
+  } else {
+    drops.push({ name: 'Legendary Fragment', icon: '🌈', count: 3 });
+    if (Math.random() < 0.7) drops.push({ name: 'Ultra Elixir', icon: '⚗️', count: 2 });
+  }
+  
+  return drops;
+}
+
+function addToParty(creature) {
+  if (party.length < 6) {
+    party.push(creature);
+    return true;
+  } else {
+    if (box.length < 50) {
+      box.push(creature);
+      return true;
+    }
+  }
+  return false;
+}
+
+// ==================== PLAYER ====================
+function giveStartingCreature() {
+  let starts = ['EMBERLING', 'AQUAPUP', 'SPROUTLING', 'ZAPPUP'];
+  let typeKey = starts[Math.floor(Math.random() * starts.length)];
+  let typeData = CREATURE_TYPES[typeKey];
+  
+  let creature = {
+    x: 0, y: 0,
+    type: typeKey,
+    data: typeData,
+    level: 5,
+    hp: typeData.baseHP + 25,
+    maxHP: typeData.baseHP + 25,
+    xp: 0,
+    status: null,
+    confused: false,
+    defenseBuff: 0,
+    attackBuff: 0
+  };
+  party.push(creature);
+}
+
+function giveItem(name, icon, count) {
+  for (let i = 0; i < count; i++) {
+    let given = false;
+    for (let slot of player.hotbar) {
+      if (slot && slot.name === name && slot.count < 99) {
+        slot.count++;
+        given = true;
+        break;
+      }
+    }
+    if (!given) {
+      for (let i = 0; i < player.hotbar.length; i++) {
+        if (!player.hotbar[i]) {
+          player.hotbar[i] = { name, icon, count: 1 };
+          given = true;
+          break;
+        }
+      }
+    }
+    if (!given) {
+      player.inventory.push({ name, icon, count: 1 });
+    }
+  }
+}
+
+function gainXP(amount) {
+  if (!party[0]) return;
+  party[0].xp += amount;
+  
+  while (party[0].xp >= party[0].level * 20) {
+    party[0].xp -= party[0].level * 20;
+    party[0].level++;
+    party[0].maxHP += 5;
+    party[0].hp = Math.min(party[0].hp + 10, party[0].maxHP);
+    
+    if (party[0].data.evolvesTo && party[0].level >= party[0].data.evolveLevel) {
+      let evolved = CREATURE_TYPES[party[0].data.evolvesTo];
+      let oldHP = party[0].hp;
+      let oldMaxHP = party[0].maxHP;
+      party[0].type = party[0].data.evolvesTo;
+      party[0].data = evolved;
+      party[0].maxHP = evolved.baseHP + Math.floor(party[0].level * 5);
+      party[0].hp = Math.min(oldHP, party[0].maxHP);
+      log(`🎉 ${party[0].data.name} evolved!`);
+    }
+    
+    updateUI();
+  }
+}
+
+// ==================== INPUT ====================
+document.addEventListener('keydown', e => keys[e.key] = true);
+document.addEventListener('keyup', e => keys[e.key] = false);
+
+let joystickEl = document.getElementById('joystick');
+let joystickKnob = document.getElementById('joystickKnob');
+let joystickOrigin = { x: 0, y: 0 };
+
+joystickEl.addEventListener('touchstart', e => {
+  e.preventDefault();
+  let touch = e.touches[0];
+  let rect = joystickEl.getBoundingClientRect();
+  joystickOrigin = { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+  joystickActive = true;
+  updateJoystick(touch.clientX, touch.clientY);
+});
+
+joystickEl.addEventListener('touchmove', e => {
+  e.preventDefault();
+  if (joystickActive) {
+    updateJoystick(e.touches[0].clientX, e.touches[0].clientY);
+  }
+});
+
+joystickEl.addEventListener('touchend', e => {
+  joystickActive = false;
+  joystickDelta = { x: 0, y: 0 };
+  joystickKnob.style.transform = 'translate(-50%, -50%)';
+});
+
+function updateJoystick(touchX, touchY) {
+  let dx = touchX - joystickOrigin.x;
+  let dy = touchY - joystickOrigin.y;
+  let dist = Math.sqrt(dx * dx + dy * dy);
+  let maxDist = 40;
+  
+  if (dist > maxDist) {
+    dx = dx / dist * maxDist;
+    dy = dy / dist * maxDist;
+    dist = maxDist;
+  }
+  
+  joystickDelta = { x: dx / maxDist, y: dy / maxDist };
+  joystickKnob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+}
+
+// Action buttons
+document.getElementById('btnAttack').addEventListener('touchstart', e => { e.preventDefault(); isAttacking = true; });
+document.getElementById('btnAttack').addEventListener('touchend', e => { e.preventDefault(); isAttacking = false; });
+document.getElementById('btnInteract').addEventListener('touchstart', e => { e.preventDefault(); handleInteract(); });
+document.getElementById('btnInventory').addEventListener('touchstart', e => { e.preventDefault(); showInventory(); });
+document.getElementById('btnCapture').addEventListener('touchstart', e => { e.preventDefault(); handleCaptureTap(); });
+document.getElementById('partyBtn').addEventListener('touchstart', e => { e.preventDefault(); showParty(); });
+
+// Keyboard attack
+document.addEventListener('keydown', e => {
+  if (e.key === ' ' || e.key === 'z') isAttacking = true;
+  if (e.key === 'e') handleInteract();
+  if (e.key === 'i') showInventory();
+  if (e.key === 'p') showParty();
+  if (e.key === 'c') handleCaptureTap();
+});
+
+// Canvas tap for interaction
+canvas.addEventListener('click', e => {
+  if (inCombat) return;
+  let rect = canvas.getBoundingClientRect();
+  let tapX = e.clientX - rect.left + camera.x;
+  let tapY = e.clientY - rect.top + camera.y;
+  
+  // Check creature tap
+  for (let c of creatures) {
+    let dx = c.x - tapX;
+    let dy = c.y - tapY;
+    if (dx * dx + dy * dy < 40 * 40) {
+      startCombat(c);
+      return;
+    }
+  }
+  
+  // Mine tile
+  let tileX = Math.floor(tapX / TILE_SIZE);
+  let tileY = Math.floor(tapY / TILE_SIZE);
+  if (tileX >= 0 && tileX < WORLD_WIDTH && tileY >= 0 && tileY < WORLD_HEIGHT) {
+    let tile = world[tileX][tileY];
+    if (tile !== TILES.AIR && tile !== TILES.WATER && tile !== TILES.LAVA && tile !== TILES.BEDROCK) {
+      mineTarget = { x: tileX, y: tileY };
+      mineProgress = 0;
+    }
+  }
+});
+
+// ==================== GAME LOGIC ====================
+function update(dt) {
+  if (inCombat) return;
+  
+  // Movement
+  let moveX = 0, moveY = 0;
+  if (keys['ArrowLeft'] || keys['a']) moveX = -1;
+  if (keys['ArrowRight'] || keys['d']) moveX = 1;
+  if (keys['ArrowUp'] || keys['w']) moveY = -1;
+  if (keys['ArrowDown'] || keys['s']) moveY = 1;
+  
+  if (joystickActive) {
+    moveX = joystickDelta.x;
+    moveY = joystickDelta.y;
+  }
+  
+  let newX = player.x + moveX * player.speed;
+  let newY = player.y + moveY * player.speed;
+  
+  // Collision
+  let checkTiles = [
+    { x: newX - player.width / 2, y: player.y },
+    { x: newX + player.width / 2, y: player.y },
+    { x: newX, y: newY - player.height / 2 },
+    { x: newX, y: newY + player.height / 2 }
+  ];
+  
+  let canMoveX = true, canMoveY = true;
+  for (let check of checkTiles) {
+    let tx = Math.floor(check.x / TILE_SIZE);
+    let ty = Math.floor(check.y / TILE_SIZE);
+    if (tx >= 0 && tx < WORLD_WIDTH && ty >= 0 && ty < WORLD_HEIGHT) {
+      let tile = world[tx][ty];
+      if (TILE_DATA[tile] && TILE_DATA[tile].solid) {
+        if (check.y === player.y) canMoveX = false;
+        if (check.x === newX) canMoveY = false;
+      }
+    }
+  }
+  
+  if (canMoveX) player.x = newX;
+  if (canMoveY) player.y = newY;
+  
+  if (moveX !== 0) player.facing = moveX > 0 ? 1 : -1;
+  
+  // Camera follow
+  camera.x = player.x - canvas.width / 2;
+  camera.y = player.y - canvas.height / 2;
+  camera.x = Math.max(0, Math.min(camera.x, WORLD_WIDTH * TILE_SIZE - canvas.width));
+  camera.y = Math.max(0, Math.min(camera.y, WORLD_HEIGHT * TILE_SIZE - canvas.height));
+  
+  // Mining
+  if (mineTarget && isAttacking) {
+    let tx = mineTarget.x, ty = mineTarget.y;
+    let tile = world[tx][ty];
+    if (tile !== TILES.AIR) {
+      mineProgress += dt * 3;
+      let mineTime = TILE_DATA[tile]?.mineTime || 1;
+      if (mineProgress >= mineTime) {
+        world[tx][ty] = TILES.AIR;
+        let name = TILE_DATA[tile]?.name || 'Tile';
+        giveItem(name, TILE_ICONS[tile] || '🟫', 1);
+        mineTarget = null;
+        mineProgress = 0;
+      }
+    }
+  }
+  
+  // Auto-mine while moving
+  if (isAttacking) {
+    let dirX = Math.round(moveX);
+    let dirY = Math.round(moveY);
+    let checkX = Math.floor((player.x + dirX * TILE_SIZE) / TILE_SIZE);
+    let checkY = Math.floor((player.y + dirY * TILE_SIZE) / TILE_SIZE);
+    if (checkX >= 0 && checkX < WORLD_WIDTH && checkY >= 0 && checkY < WORLD_HEIGHT) {
+      let tile = world[checkX][checkY];
+      if (tile !== TILES.AIR && tile !== TILES.WATER && tile !== TILES.LAVA && tile !== TILES.BEDROCK) {
+        if (!mineTarget || mineTarget.x !== checkX || mineTarget.y !== checkY) {
+          mineTarget = { x: checkX, y: checkY };
+          mineProgress = 0;
+        }
+        mineProgress += dt * 3;
+        let mineTime = TILE_DATA[tile]?.mineTime || 1;
+        if (mineProgress >= mineTime) {
+          world[checkX][checkY] = TILES.AIR;
+          let name = TILE_DATA[tile]?.name || 'Tile';
+          giveItem(name, TILE_ICONS[tile] || '🟫', 1);
+          mineTarget = null;
+          mineProgress = 0;
+        }
+      }
+    }
+  }
+  
+  updateUI();
+}
+
+function render() {
+  ctx.fillStyle = '#1a1a2e';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  // Sky gradient
+  let skyGrad = ctx.createLinearGradient(0, -camera.y, 0, canvas.height - camera.y);
+  skyGrad.addColorStop(0, '#87CEEB');
+  skyGrad.addColorStop(0.5, '#5da9d4');
+  skyGrad.addColorStop(1, '#2c5aa0');
+  ctx.fillStyle = skyGrad;
+  ctx.fillRect(0, 0, canvas.width, Math.max(0, (20 * TILE_SIZE - camera.y)));
+  
+  // Render tiles
+  let startX = Math.floor(camera.x / TILE_SIZE);
+  let startY = Math.floor(camera.y / TILE_SIZE);
+  let endX = Math.ceil((camera.x + canvas.width) / TILE_SIZE);
+  let endY = Math.ceil((camera.y + canvas.height) / TILE_SIZE);
+  
+  for (let x = startX; x <= endX; x++) {
+    for (let y = startY; y <= endY; y++) {
+      if (x < 0 || x >= WORLD_WIDTH || y < 0 || y >= WORLD_HEIGHT) continue;
+      let tile = world[x][y];
+      if (tile === TILES.AIR) continue;
+      
+      let tileData = TILE_DATA[tile];
+      ctx.fillStyle = tileData.color;
+      ctx.fillRect(x * TILE_SIZE - camera.x, y * TILE_SIZE - camera.y, TILE_SIZE + 1, TILE_SIZE + 1);
+      
+      // Ore sparkle
+      if (tile >= TILES.COPPER_ORE && tile <= TILES.GEM_ORE) {
+        ctx.fillStyle = 'rgba(255,255,255,0.3)';
+        let ox = (x * 7 + y * 13) % 8;
+        let oy = (x * 11 + y * 5) % 8;
+        ctx.fillRect(x * TILE_SIZE - camera.x + ox * 3, y * TILE_SIZE - camera.y + oy * 3, 4, 4);
+      }
+    }
+  }
+  
+  // Mine progress indicator
+  if (mineTarget) {
+    let tx = mineTarget.x, ty = mineTarget.y;
+    let tile = world[tx][ty];
+    let mineTime = TILE_DATA[tile]?.mineTime || 1;
+    let progress = mineProgress / mineTime;
+    
+    ctx.strokeStyle = '#f1c40f';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.arc(tx * TILE_SIZE + TILE_SIZE / 2 - camera.x, ty * TILE_SIZE + TILE_SIZE / 2 - camera.y, 20, -Math.PI / 2, -Math.PI / 2 + progress * Math.PI * 2);
+    ctx.stroke();
+  }
+  
+  // Render creatures
+  creatures.forEach(c => {
+    let sx = c.x - camera.x;
+    let sy = c.y - camera.y;
+    if (sx < -50 || sx > canvas.width + 50 || sy < -50 || sy > canvas.height + 50) return;
+    
+    // Shadow
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.beginPath();
+    ctx.ellipse(sx, sy + 16, 16, 6, 0, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Creature body
+    ctx.fillStyle = c.data.color;
+    ctx.beginPath();
+    ctx.arc(sx, sy, 18, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Eyes
+    ctx.fillStyle = 'white';
+    ctx.beginPath();
+    ctx.arc(sx - 6, sy - 4, 5, 0, Math.PI * 2);
+    ctx.arc(sx + 6, sy - 4, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'black';
+    ctx.beginPath();
+    ctx.arc(sx - 5, sy - 4, 2, 0, Math.PI * 2);
+    ctx.arc(sx + 7, sy - 4, 2, 0, Math.PI * 2);
+    ctx.fill();
+    
+    // Level badge
+    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+    ctx.beginPath();
+    ctx.arc(sx + 14, sy - 14, 10, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'white';
+    ctx.font = '10px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(c.level, sx + 14, sy - 10);
+    
+    // HP bar
+    let hpPct = c.hp / c.maxHP;
+    ctx.fillStyle = '#333';
+    ctx.fillRect(sx - 20, sy - 28, 40, 5);
+    ctx.fillStyle = hpPct > 0.5 ? '#2ecc71' : hpPct > 0.25 ? '#f1c40f' : '#e74c3c';
+    ctx.fillRect(sx - 20, sy - 28, 40 * hpPct, 5);
+  });
+  
+  // Render player
+  let px = player.x - camera.x;
+  let py = player.y - camera.y;
+  
+  // Shadow
+  ctx.fillStyle = 'rgba(0,0,0,0.3)';
+  ctx.beginPath();
+  ctx.ellipse(px, py + 14, 12, 5, 0, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Body
+  ctx.fillStyle = '#3498db';
+  ctx.beginPath();
+  ctx.roundRect(px - 10, py - 16, 20, 28, 5);
+  ctx.fill();
+  
+  // Head
+  ctx.fillStyle = '#f1c40f';
+  ctx.beginPath();
+  ctx.arc(px, py - 20, 10, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Eyes
+  ctx.fillStyle = 'black';
+  let eyeX = player.facing > 0 ? 2 : -2;
+  ctx.beginPath();
+  ctx.arc(px - 4 + eyeX, py - 22, 2, 0, Math.PI * 2);
+  ctx.arc(px + 4 + eyeX, py - 22, 2, 0, Math.PI * 2);
+  ctx.fill();
+  
+  // Attack effect
+  if (isAttacking) {
+    ctx.strokeStyle = '#e74c3c';
+    ctx.lineWidth = 3;
+    let ax = px + player.facing * 20;
+    ctx.beginPath();
+    ctx.moveTo(ax - 10, py - 10);
+    ctx.lineTo(ax + 10, py + 10);
+    ctx.moveTo(ax + 10, py - 10);
+    ctx.lineTo(ax - 10, py + 10);
+    ctx.stroke();
+  }
+  
+  // Hotbar selection indicator
+  ctx.strokeStyle = '#f1c40f';
+  ctx.lineWidth = 2;
+  let hbx = 10 + player.selectedHotbar * 44;
+  ctx.strokeRect(hbx, canvas.height - 60, 40, 40);
+}
+
+function updateUI() {
+  document.getElementById('hpBar').style.width = (player.hp / player.maxHP * 100) + '%';
+  document.getElementById('hpLabel').textContent = `HP ${player.hp}/${player.maxHP}`;
+  
+  if (party[0]) {
+    let xpPct = party[0].xp / (party[0].level * 20) * 100;
+    document.getElementById('xpBar').style.width = xpPct + '%';
+    document.getElementById('xpLabel').textContent = `Lv ${party[0].level}`;
+  }
+  
+  document.getElementById('depthIndicator').textContent = getDepthName();
+}
+
+// ==================== COMBAT ====================
+function startCombat(creature) {
+  inCombat = true;
+  currentWildCreature = {
+    ...creature,
+    hp: creature.data.baseHP + Math.floor(creature.level * 5),
+    maxHP: creature.data.baseHP + Math.floor(creature.level * 5),
+    xp: 0,
+    status: null,
+    confused: false,
+    defenseBuff: 0,
+    attackBuff: 0
+  };
+  
+  // Remove from world
+  let idx = creatures.indexOf(creature);
+  if (idx > -1) creatures.splice(idx, 1);
+  
+  combatState = { turn: 'player', log: [], playerTurnDone: false };
+  log(`Wild ${creature.data.name} appeared!`);
+  
+  document.getElementById('combatScreen').style.display = 'flex';
+  updateCombatUI();
+}
+
+function log(msg) {
+  combatState.log.push(msg);
+  if (combatState.log.length > 5) combatState.log.shift();
+  document.getElementById('combatLog').innerHTML = combatState.log.slice(-3).join('<br>');
+}
+
+function updateCombatUI() {
+  let c = currentWildCreature;
+  document.getElementById('creatureSprite').textContent = c.data.emoji;
+  document.getElementById('creatureSprite').style.color = c.data.color;
+  document.getElementById('creatureName').textContent = c.data.name;
+  document.getElementById('creatureType').textContent = `${c.data.type} / Lv ${c.level}`;
+  document.getElementById('creatureHPFill').style.width = (c.hp / c.maxHP * 100) + '%';
+  
+  let captureChance = Math.max(5, Math.min(95, Math.floor((c.hp / c.maxHP) * 100 * (RARITY_MODIFIERS[c.data.rarity] || 0.25) * 100)));
+  document.getElementById('captureBtn').textContent = `🎯 Capture (${captureChance}%)`;
+  document.getElementById('captureBtn').disabled = combatState.turn !== 'player';
+  
+  // Move buttons
+  let movesDiv = document.getElementById('moveButtons');
+  movesDiv.innerHTML = '';
+  
+  if (!party[0]) {
+    movesDiv.innerHTML = '<p style="text-align:center;grid-column:span 2;">No creatures in party!</p>';
+    return;
+  }
+  
+  party[0].data.moves.forEach((move, i) => {
+    let btn = document.createElement('button');
+    btn.className = 'move-btn';
+    btn.disabled = move.pp <= 0 || combatState.turn !== 'player';
+    btn.innerHTML = `<span class="move-name">${move.name}</span><span class="move-info">${move.type} | PP ${move.pp}/${move.maxPP} | Pwr ${move.power}</span>`;
+    btn.style.borderColor = getTypeColor(move.type);
+    btn.onclick = () => playerUseMove(i);
+    movesDiv.appendChild(btn);
+  });
+}
+
+function getTypeColor(type) {
+  const colors = {
+    fire: '#e74c3c', water: '#3498db', grass: '#2ecc71', electric: '#f1c40f',
+    rock: '#95a5a6', ghost: '#9b59b6', normal: '#7f8c8d'
+  };
+  return colors[type] || '#7f8c8d';
+}
+
+function typeEffectiveness(moveType, targetType) {
+  let chart = {
+    fire: { grass: 2, water: 0.5, fire: 0.5 },
+    water: { fire: 2, grass: 0.5, water: 0.5 },
+    grass: { water: 2, fire: 0.5, grass: 0.5 },
+    electric: { water: 2, grass: 0.5, electric: 0.5 },
+    rock: { fire: 2, fighting: 0.5, rock: 0.5 },
+    ghost: { ghost: 2, normal: 0 },
+    normal: { rock: 0.5, ghost: 0 }
+  };
+  return (chart[moveType]?.[targetType]) || 1;
+}
+
+function playerUseMove(moveIdx) {
+  if (combatState.turn !== 'player' || combatState.playerTurnDone) return;
+  
+  let move = party[0].data.moves[moveIdx];
+  if (!move || move.pp <= 0) return;
+  
+  move.pp--;
+  combatState.playerTurnDone = true;
+  
+  let damage = 0;
+  let effect = move.effect;
+  
+  if (move.power > 0) {
+    let eff = typeEffectiveness(move.type, currentWildCreature.data.type);
+    let attack = party[0].attack + (party[0].attackBuff * 10);
+    let defense = currentWildCreature.data.defense + (currentWildCreature.defenseBuff * 10);
+    damage = Math.max(1, Math.floor((attack * move.power * eff / defense / 50) + 2));
+    
+    if (eff > 1) log(`It's super effective!`);
+    if (eff < 1) log(`Not very effective...`);
+    
+    currentWildCreature.hp -= damage;
+    log(`${party[0].data.name} used ${move.name}! (${damage} dmg)`);
+  }
+  
+  // Apply effects
+  if (effect === 'paralyze') {
+    currentWildCreature.status = 'paralyzed';
+    log(`${currentWildCreature.data.name} is paralyzed!`);
+  } else if (effect === 'confuse') {
+    currentWildCreature.confused = true;
+    log(`${currentWildCreature.data.name} is confused!`);
+  } else if (effect === 'drain') {
+    let drain = Math.floor(party[0].maxHP * 0.1);
+    currentWildCreature.hp -= drain;
+    party[0].hp = Math.min(party[0].maxHP, party[0].hp + drain);
+    log(`Drained ${drain} HP!`);
+  } else if (effect === 'defense_up') {
+    currentWildCreature.defenseBuff += 1;
+    log(`${currentWildCreature.data.name}'s defense rose!`);
+  } else if (effect === 'attack_up') {
+    party[0].attackBuff += 1;
+    log(`${party[0].data.name}'s attack rose!`);
+  } else if (effect === 'protect') {
+    log(`${party[0].data.name} is protecting itself!`);
+  } else if (effect === 'all_up') {
+    party[0].attackBuff += 1;
+    party[0].defenseBuff += 1;
+    log(`${party[0].data.name}'s stats rose!`);
+  }
+  
+  if (currentWildCreature.hp <= 0) {
+    endCombat('won');
+    return;
+  }
+  
+  updateCombatUI();
+  
+  setTimeout(() => {
+    combatState.turn = 'enemy';
+    setTimeout(() => enemyTurn(), 800);
+  }, 500);
+}
+
+function enemyTurn() {
+  let c = currentWildCreature;
+  let availableMoves = c.data.moves.filter(m => m.pp > 0);
+  if (availableMoves.length === 0) {
+    log(`${c.data.name} has no moves left!`);
+    endCombat('won');
+    return;
+  }
+  
+  let moveIdx = Math.floor(Math.random() * availableMoves.length);
+  let move = availableMoves[moveIdx];
+  let moveIdxFull = c.data.moves.indexOf(move);
+  c.data.moves[moveIdxFull].pp--;
+  
+  let damage = 0;
+  if (move.power > 0) {
+    let eff = typeEffectiveness(move.type, party[0].data.type);
+    let attack = c.data.attack + (c.attackBuff * 10);
+    let defense = party[0].defense + (party[0].defenseBuff * 10);
+    damage = Math.max(1, Math.floor((attack * move.power * eff / defense / 50) + 2));
+    
+    if (eff > 1) log(`It's super effective!`);
+    if (eff < 1) log(`Not very effective...`);
+    
+    party[0].hp -= damage;
+    log(`${c.data.name} used ${move.name}! (${damage} dmg)`);
+  }
+  
+  if (party[0].hp <= 0) {
+    party[0].hp = 0;
+    log(`${party[0].data.name} fainted!`);
+    endCombat('lost');
+    return;
+  }
+  
+  combatState.turn = 'player';
+  combatState.playerTurnDone = false;
+  updateCombatUI();
+}
+
+function endCombat(result) {
+  setTimeout(() => {
+    document.getElementById('combatScreen').style.display = 'none';
+    inCombat = false;
+    
+    if (result === 'won') {
+      let xpGain = currentWildCreature.level * 15;
+      log(`Victory! +${xpGain} XP`);
+      gainXP(xpGain);
+      
+      // Drops
+      let drops = getCreatureDrops(currentWildCreature);
+      drops.forEach(drop => {
+        giveItem(drop.name, drop.icon, drop.count);
+      });
+    } else {
+      log(`You lost the battle...`);
+    }
+    
+    currentWildCreature = null;
+    combatState = null;
+  }, 1500);
+}
+
+function attemptCapture() {
+  if (combatState.turn !== 'player') return;
+  
+  let c = currentWildCreature;
+  let captureChance = Math.max(5, Math.min(95, Math.floor((c.hp / c.maxHP) * 100 * (RARITY_MODIFIERS[c.data.rarity] || 0.25) * 100)));
+  
+  log(`Throwing capture device...`);
+  
+  setTimeout(() => {
+    if (Math.random() * 100 < captureChance) {
+      log(`🎉 Captured ${c.data.name}!`);
+      
+      let captured = {
+        x: 0, y: 0,
+        type: c.type,
+        data: c.data,
+        level: c.level,
+        hp: c.data.baseHP + Math.floor(c.level * 5),
+        maxHP: c.data.baseHP + Math.floor(c.level * 5),
+        xp: 0,
+        status: null,
+        confused: false,
+        defenseBuff: 0,
+        attackBuff: 0
+      };
+      
+      if (addToParty(captured)) {
+        log(`${c.data.name} joined your party!`);
+      } else {
+        log(`Party full - stored in PC!`);
+      }
+      
+      endCombat('captured');
+    } else {
+      log(`Oh no! It broke free!`);
+      combatState.turn = 'enemy';
+      setTimeout(() => enemyTurn(), 800);
+    }
+  }, 1000);
+}
+
+function handleCaptureTap() {
+  if (inCombat && combatState && combatState.turn === 'player') {
+    attemptCapture();
+  }
+}
+
+// ==================== MODALS ====================
+function showModal(content) {
+  document.getElementById('modalContent').innerHTML = content;
+  document.getElementById('modal').style.display = 'flex';
+}
+
+function closeModal() {
+  document.getElementById('modal').style.display = 'none';
+}
+
+document.getElementById('modal').addEventListener('click', e => {
+  if (e.target.id === 'modal') closeModal();
+});
+
+function showInventory() {
+  let html = `<button class="modal-close" onclick="closeModal()">✕</button>
+    <h2 class="modal-title">🎒 Inventory</h2>
+    <h3 style="margin:10px 0 5px;color:#f1c40f;">Hotbar</h3>
+    <div class="inventory-grid" id="hotbarGrid"></div>
+    <h3 style="margin:10px 0 5px;color:#f1c40f;">Bag</h3>
+    <div class="inventory-grid" id="bagGrid"></div>`;
+  
+  showModal(html);
+  
+  let hotbarGrid = document.getElementById('hotbarGrid');
+  player.hotbar.forEach((slot, i) => {
+    let div = document.createElement('div');
+    div.className = 'inv-slot' + (slot ? ' filled' : '') + (i === player.selectedHotbar ? ' selected' : '');
+    div.innerHTML = slot ? `${slot.icon}<span style="font-size:8px;position:absolute;bottom:1px;right:2px;">${slot.count}</span>` : '';
+    if (slot) {
+      div.title = slot.name;
+      div.onclick = () => { player.selectedHotbar = i; showInventory(); };
+    }
+    hotbarGrid.appendChild(div);
+  });
+  
+  let bagGrid = document.getElementById('bagGrid');
+  player.inventory.forEach((slot, i) => {
+    let div = document.createElement('div');
+    div.className = 'inv-slot filled';
+    div.innerHTML = `${slot.icon}<span style="font-size:8px;position:absolute;bottom:1px;right:2px;">${slot.count}</span>`;
+    div.title = slot.name;
+    bagGrid.appendChild(div);
+  });
+}
+
+function showParty() {
+  if (party.length === 0) {
+    showModal(`<button class="modal-close" onclick="closeModal()">✕</button><h2 class="modal-title">Party</h2><p>No creatures in party!</p>`);
+    return;
+  }
+  
+  let html = `<button class="modal-close" onclick="closeModal()">✕</button>
+    <h2 class="modal-title">👥 Party</h2>`;
+  
+  party.forEach((creature, i) => {
+    let hpPct = Math.floor(creature.hp / creature.maxHP * 100);
+    html += `
+      <div style="background:#34495e;padding:10px;margin:8px 0;border-radius:8px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <span style="font-size:32px;">${creature.data.emoji}</span>
+          <div style="flex:1;">
+            <div style="font-weight:bold;">${creature.data.name}</div>
+            <div style="font-size:11px;opacity:0.8;">Lv ${creature.level} | ${creature.data.type}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="width:80px;height:8px;background:#333;border-radius:4px;overflow:hidden;">
+              <div style="width:${hpPct}%;height:100%;background:${hpPct > 50 ? '#2ecc71' : hpPct > 25 ? '#f1c40f' : '#e74c3c'};"></div>
+            </div>
+            <div style="font-size:10px;margin-top:2px;">${creature.hp}/${creature.maxHP}</div>
+          </div>
+        </div>
+      </div>`;
+  });
+  
+  showModal(html);
+}
+
+function handleInteract() {
+  if (inCombat) return;
+  
+  // Check for creature nearby
+  for (let c of creatures) {
+    let dx = c.x - player.x;
+    let dy = c.y - player.y;
+    if (dx * dx + dy * dy < 60 * 60) {
+      startCombat(c);
+      return;
+    }
+  }
+  
+  // Check for NPC / chest / etc. (future)
+}
+
+// ==================== GAME LOOP ====================
+let lastTime = 0;
+function gameLoop(timestamp) {
+  let dt = Math.min((timestamp - lastTime) / 1000, 0.1);
+  lastTime = timestamp;
+  
+  update(dt);
+  render();
+  
+  requestAnimationFrame(gameLoop);
+}
+
+// ==================== INIT ====================
+function newGame() {
+  let seed = Date.now();
+  generateWorld(seed);
+  
+  player = {
+    x: WORLD_WIDTH * TILE_SIZE / 2,
+    y: 10 * TILE_SIZE,
+    width: 24,
+    height: 32,
+    speed: 4,
+    hp: 100,
+    maxHP: 100,
+    level: 1,
+    xp: 0,
+    xpToLevel: 20,
+    facing: 1,
+    inventory: [],
+    hotbar: [null, null, null, null, null, null],
+    selectedHotbar: 0
+  };
+  
+  party = [];
+  box = [];
+  giveStartingCreature();
+  log(`Welcome to Creacatch! Your adventure begins.`);
+}
+
+newGame();
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>
